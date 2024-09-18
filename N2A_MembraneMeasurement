@@ -1,0 +1,60 @@
+//Adapted from Wu, 2016 for N2A-P1KO cell Analysis
+//example files are cells expressing ion channels (labeled red, BTX)
+//they also express GFP and are labeled with membrane marke WGA
+//choose source and destination directories
+dir1 = getDirectory("Choose Source Directory");
+dir2 = getDirectory("Choose Destination Directory");
+list = getFileList(dir1);
+//goes through all the files in the folder
+//splits channels and processes, thresholds, and analyze particles
+for (i=0; i<list.length; i++) {
+  if (endsWith(list[i], ".tif")) {
+    open(dir1 + list[i]);
+	name = getTitle();
+	run("Split Channels");
+	selectWindow("C2-" + name);
+	run("Duplicate...", " ");
+	run("Despeckle");
+	run("Threshold...");
+	setAutoThreshold("Default dark");
+	waitForUser("Set threshold");
+	run("Smooth");
+	run("Smooth");
+	run("Convert to Mask");
+	run("Fill Holes");
+	
+	run("Erode");
+	run("Erode");
+	run("Analyze Particles...", "size=10-Infinity clear add");
+	roiManager("Set Color", "yellow");
+	roiManager("Set Line Width", 0);
+	run("Set Measurements...", "area mean display redirect=None decimal=2");
+//goes through each ROI and makes a band around it and replaces that ROI
+//now all the ROIs are cell shaped donuts
+	count = roiManager("count");
+	for (j = 0; j < count; j++) {
+		selectWindow("C1-" + name);
+		roiManager("select", j);
+		run("Make Band...", "band=1.5");
+		roiManager("update");
+		roiManager("Measure");
+		}
+	
+//gets rid of the .lsm extension and saves all three channels as separate tiffs
+//saves the ROIs as a zip
+//saves the Results as xls
+    dotIndex = indexOf(name, ".");
+	title0 = substring(name, 0, dotIndex);
+	selectWindow("C2-" + name);
+    saveAs("TIFF", dir2 + name + "-GFP");
+	selectWindow("C1-" + name);
+	run("Grays");
+    saveAs("TIFF", dir2 + name + "-594");
+    selectWindow("C3-" + name);
+    run("Select None");
+    saveAs("TIFF", dir2 + name + "-BF");
+	roiManager("Save", dir2 + name + "-ROI.zip");
+    saveAs("Results", dir2 + name + "-Results.csv");
+    run("Close All");
+  }
+}
